@@ -2,8 +2,8 @@ package top.met6.music.mobile.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -21,8 +21,6 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.animation.core.EaseInOutCubic
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -49,6 +47,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 fun FullScreenPlayer() {
     val song = AppState.currentSong.value ?: return
     var showQueueSheet by remember { mutableStateOf(false) }
+    var showTranslation by remember { mutableStateOf(true) }
 
     // Prevent screen from dimming/sleeping during playback
     KeepScreenOn()
@@ -142,7 +141,7 @@ fun FullScreenPlayer() {
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
                             Box(modifier = Modifier.fillMaxSize().weight(1f)) {
-                                LyricsView()
+                                LyricsView(showTranslation = showTranslation)
                             }
                         }
                     }
@@ -234,7 +233,7 @@ fun FullScreenPlayer() {
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
                             Box(modifier = Modifier.fillMaxSize().weight(1f)) {
-                                LyricsView()
+                                LyricsView(showTranslation = showTranslation)
                             }
                         }
                     }
@@ -245,7 +244,11 @@ fun FullScreenPlayer() {
                     PlayerHeader(isLandscape = false)
                     
                     Box(modifier = Modifier.weight(1f)) {
-                        PortraitPager(song = song) {
+                        PortraitPager(
+                            song = song,
+                            showTranslation = showTranslation,
+                            onShowTranslationChange = { showTranslation = it }
+                        ) {
                             showQueueSheet = true
                         }
                     }
@@ -340,7 +343,12 @@ fun PlayerHeader(isLandscape: Boolean) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PortraitPager(song: Song, onShowQueue: () -> Unit) {
+fun PortraitPager(
+    song: Song,
+    showTranslation: Boolean,
+    onShowTranslationChange: (Boolean) -> Unit,
+    onShowQueue: () -> Unit
+) {
     val pagerState = rememberPagerState(pageCount = { 2 })
 
     HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
@@ -393,15 +401,95 @@ fun PortraitPager(song: Song, onShowQueue: () -> Unit) {
                     .fillMaxSize()
                     .padding(horizontal = 24.dp)
             ) {
-                Text(
-                    text = "歌词",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                // Header (cover + song + artist)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CachedImage(
+                        songId = song.id,
+                        imageUrl = song.bestCoverUrl,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = song.name,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = song.artists.joinToString(" & ") { it.name },
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                // Lyrics
                 Box(modifier = Modifier.fillMaxSize().weight(1f)) {
-                    LyricsView()
+                    LyricsView(showTranslation = showTranslation)
+                }
+
+                // Bottom Action Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Translation toggle button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (showTranslation) Color.White.copy(alpha = 0.2f) else Color.Transparent)
+                            .border(
+                                width = 1.dp,
+                                color = if (showTranslation) Color.Transparent else Color.White.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                            .clickable { onShowTranslationChange(!showTranslation) }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "翻译",
+                            color = if (showTranslation) Color.White else Color.White.copy(alpha = 0.5f),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    // Play / Pause button
+                    val isPlaying = AppState.player.isPlaying.value
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.1f))
+                            .clickable {
+                                if (isPlaying) AppState.player.pause() else AppState.resumeOrPlay()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) MusicIcons.Pause else MusicIcons.Play,
+                            contentDescription = "Play/Pause",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }
@@ -576,7 +664,7 @@ fun PlaybackControls(isLandscape: Boolean, onShowQueue: () -> Unit) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LyricsView() {
+fun LyricsView(showTranslation: Boolean = true) {
     val lines = AppState.lyricLines.value
     val activeIndex = AppState.currentLyricIndex.value
     val lazyListState = rememberLazyListState()
@@ -584,30 +672,15 @@ fun LyricsView() {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val viewportHeightDp = maxHeight
 
-        // Smooth scroll with ease-in/ease-out using animateScrollBy
-        // animateScrollToItem does not support custom animationSpec.
+        // Scroll active lyric line to the 1/5-from-top position.
+        // contentPadding(top = viewportHeight/5) ensures scrollOffset=0 lands
+        // the item exactly at viewport/5 from the top — no manual delta needed.
         LaunchedEffect(activeIndex) {
             if (activeIndex >= 0 && activeIndex < lines.size) {
-                val itemInfo = lazyListState.layoutInfo.visibleItemsInfo
-                    .firstOrNull { it.index == activeIndex }
-                if (itemInfo != null) {
-                    // Item is visible: delta = how far it needs to move to sit at 1/4 from top.
-                    // beforeContentPadding = top padding = viewportHeight/4 in px.
-                    val delta = itemInfo.offset.toFloat() -
-                        lazyListState.layoutInfo.beforeContentPadding
-                    if (kotlin.math.abs(delta) > 1f) {
-                        lazyListState.animateScrollBy(
-                            value = delta,
-                            animationSpec = tween(
-                                durationMillis = 600,
-                                easing = EaseInOutCubic
-                            )
-                        )
-                    }
-                } else {
-                    // Item is off-screen: snap directly (can't calculate delta)
-                    lazyListState.scrollToItem(activeIndex, 0)
-                }
+                lazyListState.animateScrollToItem(
+                    index = activeIndex,
+                    scrollOffset = 0
+                )
             }
         }
 
@@ -616,7 +689,7 @@ fun LyricsView() {
                 Text(text = "暂无歌词", color = Color.Gray, fontSize = 16.sp)
             }
         } else {
-            val topPaddingDp = viewportHeightDp / 4
+            val topPaddingDp = viewportHeightDp / 5
             val bottomPaddingDp = viewportHeightDp - topPaddingDp
 
             LazyColumn(
@@ -696,7 +769,7 @@ fun LyricsView() {
                         }
                         
                         line.translation?.let { tran ->
-                            if (tran.isNotEmpty() && tran != "//") {
+                            if (showTranslation && tran.isNotEmpty() && tran != "//") {
                                 Text(
                                     text = tran,
                                     color = if (isActive) Color.White.copy(alpha = 0.8f) else Color.Gray,
