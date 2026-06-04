@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeT-Music_Mobile</title>
+    <link type="text/css" rel="stylesheet" href="styles.css">
+</head>
+<body style="text-align: center; align-content: center">
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50" role="presentation">
+    <circle cx="25" cy="25" r="20" stroke="#ccc" stroke-width="4" fill="none"/>
+    <circle cx="25" cy="25" r="20" stroke="#333" stroke-width="4" fill="none" stroke-linecap="round"
+            stroke-dasharray="90 125">
+        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s"
+                          repeatCount="indefinite"/>
+    </circle>
+</svg>
+<script>
+    window.metMusicStorage = {
+        saveText: function(key, value) {
+            localStorage.setItem(key, value);
+        },
+        getText: function(key) {
+            return localStorage.getItem(key);
+        },
+        clearText: function(key) {
+            localStorage.removeItem(key);
+        },
+        saveCacheFile: async function(category, name, bytesBase64) {
+            const cache = await caches.open("met_music_cache_" + category);
+            const binString = atob(bytesBase64);
+            const len = binString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binString.charCodeAt(i);
+            }
+            const response = new Response(new Blob([bytes]));
+            await cache.put(name, response);
+        },
+        getCacheFile: async function(category, name) {
+            const cache = await caches.open("met_music_cache_" + category);
+            const response = await cache.match(name);
+            if (!response) return null;
+            const arrayBuffer = await response.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        },
+        getCacheUrl: async function(category, name) {
+            const cache = await caches.open("met_music_cache_" + category);
+            const response = await cache.match(name);
+            if (!response) return null;
+            const blob = await response.blob();
+            return URL.createObjectURL(blob);
+        },
+        clearCache: async function(category) {
+            await caches.delete("met_music_cache_" + category);
+        },
+        getCacheSize: async function(category) {
+            const cache = await caches.open("met_music_cache_" + category);
+            const keys = await cache.keys();
+            let size = 0;
+            for (const key of keys) {
+                const response = await cache.match(key);
+                if (response) {
+                    const blob = await response.blob();
+                    size += blob.size;
+                }
+            }
+            return size;
+        }
+    };
+
+    let audio = null;
+    window.metMusicPlayer = {
+        play: function(url) {
+            if (audio) {
+                audio.pause();
+                audio = null;
+            }
+            audio = new Audio(url);
+            audio.play().catch(e => console.error("Play failed", e));
+        },
+        pause: function() {
+            if (audio) audio.pause();
+        },
+        resume: function() {
+            if (audio) audio.play().catch(e => console.error("Resume failed", e));
+        },
+        stop: function() {
+            if (audio) {
+                audio.pause();
+                audio = null;
+            }
+        },
+        seekTo: function(seconds) {
+            if (audio) audio.currentTime = seconds;
+        },
+        setVolume: function(vol) {
+            if (audio) audio.volume = vol;
+        },
+        getDuration: function() {
+            return audio && !isNaN(audio.duration) ? audio.duration : 0.0;
+        },
+        getCurrentTime: function() {
+            return audio ? audio.currentTime : 0.0;
+        },
+        isPlaying: function() {
+            return audio ? !audio.paused : false;
+        },
+        isReady: function() {
+            return audio ? audio.readyState >= 1 : false;
+        }
+    };
+</script>
+<script type="application/javascript" src="webApp.js"></script>
+</body>
+</html>
