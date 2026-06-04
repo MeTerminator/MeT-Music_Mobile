@@ -3,6 +3,7 @@ package top.met6.music.mobile.storage
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.client.call.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +19,76 @@ class CacheManager(private val storage: PlatformStorage) {
     private val downloadScope = CoroutineScope(Dispatchers.Default)
     private val activeDownloadsMutex = Mutex()
     private val activeDownloads = mutableSetOf<String>()
+
+    private val remoteUrlCache = mutableMapOf<String, Pair<String, Long>>()
+    private val remoteUrlMutex = Mutex()
+
+    suspend fun getCachedRemoteUrl(songId: String, quality: String): String? {
+        val key = "$songId-$quality"
+        remoteUrlMutex.withLock {
+            val entry = remoteUrlCache[key] ?: return null
+            val now = getCurrentTimeMs()
+            // 1.5 hours = 5400000 ms
+            if (now - entry.second < 5400000L) {
+                return entry.first
+            } else {
+                remoteUrlCache.remove(key)
+                return null
+            }
+        }
+    }
+
+    suspend fun saveRemoteUrlToCache(songId: String, quality: String, url: String) {
+        val key = "$songId-$quality"
+        remoteUrlMutex.withLock {
+            remoteUrlCache[key] = Pair(url, getCurrentTimeMs())
+        }
+    }
+
+    suspend fun saveSongMetadata(song: Song, quality: String) {
+        try {
+            val meta = CachedSongMetadata(song, quality, getCurrentTimeMs())
+            val json = Json.encodeToString(meta)
+            storage.saveCacheFile("songs_metadata", song.id, json.encodeToByteArray())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun getSongMetadata(songId: String): CachedSongMetadata? {
+        val bytes = storage.getCacheFile("songs_metadata", songId) ?: return null
+        val str = bytes.decodeToString()
+        return try {
+            Json.decodeFromString<CachedSongMetadata>(str)
+        } catch (e: Exception) {
+            try {
+                val song = Json.decodeFromString<Song>(str)
+                CachedSongMetadata(song, "unknown", 0L)
+            } catch (ex: Exception) {
+                null
+            }
+        }
+    }
+
+    suspend fun getCachedSongs(): List<Triple<Song, String, Long>> {
+        val songIds = storage.listCacheFiles("songs")
+        val result = mutableListOf<Triple<Song, String, Long>>()
+        for (songId in songIds) {
+            val size = storage.getCacheFileSize("songs", songId)
+            val meta = getSongMetadata(songId)
+            val song = meta?.song ?: Song(id = songId, name = "未知歌曲 (ID: $songId)")
+            val quality = meta?.quality ?: "unknown"
+            result.add(Triple(song, quality, size))
+        }
+        return result
+    }
+
+    suspend fun deleteCachedSong(songId: String): Boolean {
+        val successSong = storage.deleteCacheFile("songs", songId)
+        // Also clean up metadata
+        storage.deleteCacheFile("songs_metadata", songId)
+        return successSong
+    }
 
     suspend fun savePlaylistsToCache(uid: String, playlists: List<Playlist>) {
         try {
@@ -139,3 +210,10 @@ class CacheManager(private val storage: PlatformStorage) {
         storage.clearCache(category)
     }
 }
+
+@Serializable
+data class CachedSongMetadata(
+    val song: Song,
+    val quality: String,
+    val cachedTimeMs: Long
+)

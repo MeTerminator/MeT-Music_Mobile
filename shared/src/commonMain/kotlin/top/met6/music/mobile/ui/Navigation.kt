@@ -40,6 +40,7 @@ fun AppNavigation() {
                     is Screen.Playlists -> PlaylistsScreen()
                     is Screen.PlaylistDetail -> PlaylistDetailScreen(playlist = currentScreen.playlist)
                     is Screen.Settings -> SettingsScreen()
+                    is Screen.CacheManagerDetail -> CacheManagerScreen()
                 }
             }
 
@@ -65,7 +66,7 @@ fun AppNavigation() {
                             )
                         )
                         NavigationBarItem(
-                            selected = currentScreen is Screen.Settings,
+                            selected = currentScreen is Screen.Settings || currentScreen is Screen.CacheManagerDetail,
                             onClick = { AppState.navigateTo(Screen.Settings) },
                             icon = { Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings") },
                             label = { Text("设置", fontSize = 11.sp) },

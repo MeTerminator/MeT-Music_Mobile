@@ -53,7 +53,14 @@ class JsPlatformStorage : PlatformStorage {
         val promise = storage.getCacheSize(category) as kotlin.js.Promise<Double>
         return promise.await().toLong()
     }
+
+    override suspend fun listCacheFiles(category: String): List<String> = emptyList()
+    override suspend fun deleteCacheFile(category: String, name: String): Boolean = false
+    override suspend fun getCacheFileSize(category: String, name: String): Long = 0L
 }
+
+actual fun getCurrentTimeMs(): Long = kotlin.js.Date.now().toLong()
+
 
 actual fun getPlatformStorage(context: PlatformContext): PlatformStorage {
     return JsPlatformStorage()

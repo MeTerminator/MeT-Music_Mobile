@@ -129,21 +129,24 @@ fun SettingsScreen() {
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     val qualities = listOf(
-                        "standard" to "标准 (Standard)",
-                        "higher" to "较高 (Higher)",
-                        "exhigh" to "极高 (ExHigh)",
-                        "lossless" to "无损 (Lossless)",
-                        "hires" to "Hi-Res (Hi-Res)"
+                        Triple("web", "普通 WEB", "在线流媒体音质"),
+                        Triple("hq", "极高 HQ", "近 CD 品质的细节体验，最高 320kbps"),
+                        Triple("sq", "无损 SQ", "高保真无损音质，最高 48kHz/24bit"),
+                        Triple("rs", "高分辨率音源 Hi-Res", "索尼高品质音乐标准，高于 44.1kHz/16bit"),
+                        Triple("dts", "杜比 5.1 声道", "六声道环绕声，使人产生犹如身临音乐厅的感觉"),
+                        Triple("q360v1", "臻品全景声 V1", "独家自研空间音频，V1 版本，立体声"),
+                        Triple("q360v2", "臻品全景声 V2", "独家自研空间音频，V2 版本，多声道"),
+                        Triple("qai", "臻品母带", "还原声音细节，让声音还原更加极致")
                     )
                     
-                    qualities.forEach { (key, label) ->
+                    qualities.forEach { (key, label, tip) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable { AppState.setSoundQualityLevel(key) }
-                                .padding(horizontal = 12.dp, vertical = 12.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             RadioButton(
                                 selected = AppState.soundQuality.value == key,
@@ -151,7 +154,10 @@ fun SettingsScreen() {
                                 colors = RadioButtonDefaults.colors(selectedColor = AppleMusicPink)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = label, color = Color.White, fontSize = 14.sp)
+                            Column {
+                                Text(text = label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(text = tip, color = Color.Gray, fontSize = 11.sp)
+                            }
                         }
                     }
                 }
@@ -197,6 +203,22 @@ fun SettingsScreen() {
                         sizeMb = AppState.songCacheSize.value
                     ) {
                         AppState.clearCacheCategory("songs")
+                    }
+
+                    Divider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 12.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { AppState.navigateTo(top.met6.music.mobile.state.Screen.CacheManagerDetail) }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "管理已缓存音频", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(text = "查看并单独清除已缓存的歌曲", color = Color.Gray, fontSize = 12.sp)
+                        }
+                        Text(text = "管理 >", color = AppleMusicPink, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }

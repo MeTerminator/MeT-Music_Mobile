@@ -12,6 +12,12 @@ interface PlatformStorage {
     suspend fun getCacheUrl(category: String, name: String): String?
     suspend fun clearCache(category: String)
     suspend fun getCacheSize(category: String): Long
+
+    suspend fun listCacheFiles(category: String): List<String>
+    suspend fun deleteCacheFile(category: String, name: String): Boolean
+    suspend fun getCacheFileSize(category: String, name: String): Long
 }
+
+expect fun getCurrentTimeMs(): Long
 
 expect fun getPlatformStorage(context: PlatformContext): PlatformStorage

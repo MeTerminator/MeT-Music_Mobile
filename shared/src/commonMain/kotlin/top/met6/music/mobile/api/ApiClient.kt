@@ -47,7 +47,7 @@ object ApiClient {
         }.body()
     }
 
-    suspend fun getSongUrl(id: String, level: String = "standard"): SongUrlResponse {
+    suspend fun getSongUrl(id: String, level: String = "hq"): SongUrlResponse {
         val timestamp = (0..99999999).random().toString()
         return httpClient.get("$BASE_URL/song/url/v1") {
             parameter("id", id)

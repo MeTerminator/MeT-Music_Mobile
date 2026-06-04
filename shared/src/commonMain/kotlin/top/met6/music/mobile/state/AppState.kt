@@ -25,6 +25,7 @@ sealed class Screen {
     object Playlists : Screen()
     data class PlaylistDetail(val playlist: Playlist) : Screen()
     object Settings : Screen()
+    object CacheManagerDetail : Screen()
 }
 
 enum class PlaybackMode {
@@ -77,7 +78,7 @@ object AppState {
     val lyricLines = mutableStateOf<List<LyricLine>>(emptyList())
     val currentLyricIndex = mutableStateOf(-1)
     val isFullScreenPlayer = mutableStateOf(false)
-    val soundQuality = mutableStateOf("standard") // standard, higher, exhigh, lossless, hires
+    val soundQuality = mutableStateOf("hq") // web, hq, sq, rs, dts, q360v1, q360v2, qai
 
     // --- Cache sizes ---
     val playlistCacheSize = mutableStateOf(0.0)
@@ -165,8 +166,11 @@ object AppState {
         val savedQq = platformStorage.getText("qq_id")
         val savedQuality = platformStorage.getText("sound_quality")
         val savedMode = platformStorage.getText("playback_mode")
-        if (!savedQuality.isNullOrEmpty()) {
+        val supportedQualities = setOf("web", "hq", "sq", "rs", "dts", "q360v1", "q360v2", "qai")
+        if (!savedQuality.isNullOrEmpty() && supportedQualities.contains(savedQuality)) {
             soundQuality.value = savedQuality
+        } else {
+            soundQuality.value = "hq"
         }
         if (!savedMode.isNullOrEmpty()) {
             try {
@@ -327,6 +331,9 @@ object AppState {
     fun clearCacheCategory(category: String) {
         scope.launch {
             storage.clearCacheCategory(category)
+            if (category == "songs") {
+                storage.clearCacheCategory("songs_metadata")
+            }
             updateCacheSizes()
             if (category == "playlists" && isLoggedIn.value) {
                 loadUserPlaylists(qqId.value)
@@ -441,16 +448,21 @@ object AppState {
                 var audioUrl = storage.getCachedSongUrl(song.id)
                 
                 if (audioUrl == null) {
-                    // 1. Fetch song url
-                    val urlResponse = ApiClient.getSongUrl(song.id, soundQuality.value)
-                    val rawUrl = urlResponse.data.firstOrNull()?.url
-                    if (rawUrl.isNullOrEmpty()) {
-                        nextSong() // skip on error
-                        return@launch
+                    var remoteUrl = storage.getCachedRemoteUrl(song.id, soundQuality.value)
+                    if (remoteUrl == null) {
+                        // 1. Fetch song url
+                        val urlResponse = ApiClient.getSongUrl(song.id, soundQuality.value)
+                        val rawUrl = urlResponse.data.firstOrNull()?.url
+                        if (rawUrl.isNullOrEmpty()) {
+                            nextSong() // skip on error
+                            return@launch
+                        }
+                        remoteUrl = rawUrl
+                        storage.saveRemoteUrlToCache(song.id, soundQuality.value, rawUrl)
                     }
      
                     // 2. Resolve cached audio file url
-                    audioUrl = storage.getSongAudioUrl(song.id, rawUrl)
+                    audioUrl = storage.getSongAudioUrl(song.id, remoteUrl)
                 }
                 
                 // 3. Load & Parse lyrics
@@ -469,6 +481,15 @@ object AppState {
  
                 // 5. Play!
                 player.play(audioUrl)
+
+                // Save song metadata for cache management
+                storage.saveSongMetadata(song, soundQuality.value)
+
+                // Preload the next song
+                val next = getNextSong()
+                if (next != null) {
+                    preloadSong(next)
+                }
  
                 // 6. Seek to startup position if needed
                 val startupPos = savedPlaybackPositionMs.value
@@ -487,6 +508,76 @@ object AppState {
             } catch (e: Exception) {
                 e.printStackTrace()
                 nextSong() // skip on error
+            }
+        }
+    }
+
+    fun getNextSong(): Song? {
+        val queue = currentQueue.value
+        if (queue.isEmpty()) return null
+        val currentIndexVal = currentIndex.value
+        if (currentIndexVal < 0 || currentIndexVal >= queue.size) return null
+        
+        var nextIdx = currentIndexVal
+        when (playbackMode.value) {
+            PlaybackMode.SEQUENCE -> {
+                nextIdx++
+                if (nextIdx >= queue.size) {
+                    nextIdx = 0
+                }
+            }
+            PlaybackMode.LOOP_LIST -> {
+                nextIdx = (nextIdx + 1) % queue.size
+            }
+            PlaybackMode.LOOP_SINGLE -> {
+                nextIdx = (nextIdx + 1) % queue.size
+            }
+            PlaybackMode.SHUFFLE -> {
+                nextIdx = (nextIdx + 1) % queue.size
+            }
+        }
+        if (nextIdx in queue.indices) {
+            return queue[nextIdx]
+        }
+        return null
+    }
+
+    fun preloadSong(song: Song) {
+        scope.launch {
+            try {
+                // 1. Preload Cover Image
+                if (song.bestCoverUrl.isNotEmpty()) {
+                    storage.getCoverImageUrl(song.id, song.bestCoverUrl)
+                }
+
+                // 2. Save Song Metadata
+                storage.saveSongMetadata(song, soundQuality.value)
+
+                // 3. Preload Audio Link & File
+                val cachedLocalUrl = storage.getCachedSongUrl(song.id)
+                if (cachedLocalUrl == null) {
+                    var remoteUrl = storage.getCachedRemoteUrl(song.id, soundQuality.value)
+                    if (remoteUrl == null) {
+                        val urlResponse = ApiClient.getSongUrl(song.id, soundQuality.value)
+                        val rawUrl = urlResponse.data.firstOrNull()?.url
+                        if (!rawUrl.isNullOrEmpty()) {
+                            remoteUrl = rawUrl
+                            storage.saveRemoteUrlToCache(song.id, soundQuality.value, rawUrl)
+                        }
+                    }
+                    if (remoteUrl != null) {
+                        storage.getSongAudioUrl(song.id, remoteUrl)
+                    }
+                }
+
+                // 4. Preload Lyrics
+                try {
+                    ApiClient.getSongLyric(song.id)
+                } catch (e: Exception) {
+                    // Ignore lyric preloading errors
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

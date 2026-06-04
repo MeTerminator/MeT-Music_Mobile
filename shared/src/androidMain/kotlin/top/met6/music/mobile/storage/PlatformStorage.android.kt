@@ -64,7 +64,25 @@ class AndroidPlatformStorage(private val context: Context) : PlatformStorage {
         }
         return size
     }
+
+    override suspend fun listCacheFiles(category: String): List<String> {
+        val dir = getCacheDir(category)
+        val files = dir.listFiles() ?: return emptyList()
+        return files.filter { it.isFile }.map { it.name }
+    }
+
+    override suspend fun deleteCacheFile(category: String, name: String): Boolean {
+        val file = File(getCacheDir(category), name)
+        return if (file.exists()) file.delete() else false
+    }
+
+    override suspend fun getCacheFileSize(category: String, name: String): Long {
+        val file = File(getCacheDir(category), name)
+        return if (file.exists()) file.length() else 0L
+    }
 }
+
+actual fun getCurrentTimeMs(): Long = System.currentTimeMillis()
 
 actual fun getPlatformStorage(context: PlatformContext): PlatformStorage {
     return AndroidPlatformStorage(context.context)

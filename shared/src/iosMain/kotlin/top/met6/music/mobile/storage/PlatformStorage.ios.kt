@@ -86,7 +86,37 @@ class IosPlatformStorage : PlatformStorage {
         }
         return size
     }
+
+    override suspend fun listCacheFiles(category: String): List<String> {
+        val path = getCacheDir(category)
+        val fileManager = NSFileManager.defaultManager
+        val contents = fileManager.contentsOfDirectoryAtPath(path, error = null) ?: return emptyList()
+        return contents.map { it.toString() }.filter { item ->
+            val subPath = "$path/$item"
+            val attrs = fileManager.attributesOfItemAtPath(subPath, error = null)
+            val fileType = attrs?.get(NSFileType) as? String
+            fileType != NSFileTypeDirectory
+        }
+    }
+
+    override suspend fun deleteCacheFile(category: String, name: String): Boolean {
+        val path = "${getCacheDir(category)}/$name"
+        val fileManager = NSFileManager.defaultManager
+        if (!fileManager.fileExistsAtPath(path)) return false
+        return fileManager.removeItemAtPath(path, error = null)
+    }
+
+    override suspend fun getCacheFileSize(category: String, name: String): Long {
+        val path = "${getCacheDir(category)}/$name"
+        val fileManager = NSFileManager.defaultManager
+        if (!fileManager.fileExistsAtPath(path)) return 0L
+        val attrs = fileManager.attributesOfItemAtPath(path, error = null) ?: return 0L
+        return (attrs[NSFileSize] as? NSNumber)?.longValue ?: 0L
+    }
 }
+
+actual fun getCurrentTimeMs(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
+
 
 @OptIn(ExperimentalForeignApi::class)
 fun ByteArray.toNSData(): NSData {

@@ -79,7 +79,17 @@ class WasmPlatformStorage : PlatformStorage {
             if (cont.isActive) cont.resume(size.toLong())
         }
     }
+
+    override suspend fun listCacheFiles(category: String): List<String> = emptyList()
+    override suspend fun deleteCacheFile(category: String, name: String): Boolean = false
+    override suspend fun getCacheFileSize(category: String, name: String): Long = 0L
 }
+
+@JsFun("() => Date.now()")
+private external fun dateNowJs(): Double
+
+actual fun getCurrentTimeMs(): Long = dateNowJs().toLong()
+
 
 actual fun getPlatformStorage(context: PlatformContext): PlatformStorage {
     return WasmPlatformStorage()
