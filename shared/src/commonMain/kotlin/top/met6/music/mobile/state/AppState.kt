@@ -92,6 +92,7 @@ object AppState {
     val lyricLeadMs = mutableStateOf(300L)
     val lyricFontSize = mutableStateOf(20)
     val translationFontSize = mutableStateOf(14)
+    val useSpotifyFont = mutableStateOf(false)
 
     fun savePlaybackState() {
         try {
@@ -219,6 +220,13 @@ object AppState {
             translationFontSize.value = savedTranslationSize.toIntOrNull() ?: 14
         } else {
             translationFontSize.value = 14
+        }
+
+        val savedSpotifyFont = platformStorage.getText("use_spotify_font")
+        if (!savedSpotifyFont.isNullOrEmpty()) {
+            useSpotifyFont.value = savedSpotifyFont.toBoolean()
+        } else {
+            useSpotifyFont.value = false
         }
 
         // Restore last playback state
@@ -381,6 +389,11 @@ object AppState {
     fun setTranslationFontSize(size: Int) {
         translationFontSize.value = size
         platformStorage.saveText("translation_font_size", size.toString())
+    }
+
+    fun setUseSpotifyFont(enabled: Boolean) {
+        useSpotifyFont.value = enabled
+        platformStorage.saveText("use_spotify_font", enabled.toString())
     }
 
     fun updateCacheSizes() {

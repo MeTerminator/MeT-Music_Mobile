@@ -42,6 +42,10 @@ import top.met6.music.mobile.lyric.LyricLine
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.text.font.FontFamily
+import met_music_mobile.shared.generated.resources.Res
+import met_music_mobile.shared.generated.resources.spotify_mix
+import org.jetbrains.compose.resources.Font
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -719,6 +723,18 @@ fun LyricsView(showTranslation: Boolean = true) {
     val lines = AppState.lyricLines.value
     val activeIndex = AppState.currentLyricIndex.value
     val lazyListState = rememberLazyListState()
+    val spotifyFont = if (AppState.useSpotifyFont.value) {
+        Font(Res.font.spotify_mix)
+    } else {
+        null
+    }
+    val lyricFontFamily = remember(spotifyFont) {
+        if (spotifyFont != null) {
+            FontFamily(spotifyFont)
+        } else {
+            FontFamily.Default
+        }
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val viewportHeightDp = maxHeight
@@ -775,6 +791,7 @@ fun LyricsView(showTranslation: Boolean = true) {
                                 fontSize = fontSizeSp,
                                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
                                 lineHeight = lineHeightSp,
+                                fontFamily = lyricFontFamily,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         } else {
@@ -801,7 +818,8 @@ fun LyricsView(showTranslation: Boolean = true) {
                                             color = Color.White.copy(alpha = 0.4f),
                                             fontSize = fontSizeSp,
                                             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                                            lineHeight = lineHeightSp
+                                            lineHeight = lineHeightSp,
+                                            fontFamily = lyricFontFamily
                                         )
 
                                         if (isActive && progress > 0f) {
@@ -814,6 +832,7 @@ fun LyricsView(showTranslation: Boolean = true) {
                                                 fontSize = activeFontSizeSp,
                                                 fontWeight = FontWeight.Bold,
                                                 lineHeight = activeLineHeightSp,
+                                                fontFamily = lyricFontFamily,
                                                 modifier = Modifier.drawWithContent {
                                                     clipRect(right = size.width * progress) {
                                                         this@drawWithContent.drawContent()
@@ -835,6 +854,7 @@ fun LyricsView(showTranslation: Boolean = true) {
                                     color = if (isActive) Color.White.copy(alpha = 0.8f) else Color.Gray,
                                     fontSize = tranFontSizeSp,
                                     lineHeight = (tranFontSizeSp.value * 1.3f).sp,
+                                    fontFamily = lyricFontFamily,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }

@@ -377,6 +377,36 @@ fun SettingsScreen() {
                         Text(text = "默认 (14sp)", color = Color.Gray, fontSize = 11.sp)
                         Text(text = "大 (22sp)", color = Color.Gray, fontSize = 11.sp)
                     }
+
+                    HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "歌词使用 Spotify 字体",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "在歌词播放页启用 Spotify 专用字体",
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
+                        }
+                        Switch(
+                            checked = AppState.useSpotifyFont.value,
+                            onCheckedChange = { AppState.setUseSpotifyFont(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = AppleMusicPink
+                            )
+                        )
+                    }
                 }
             }
             
