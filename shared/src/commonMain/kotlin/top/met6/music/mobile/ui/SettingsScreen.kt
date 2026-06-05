@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.met6.music.mobile.state.AppState
+import top.met6.music.mobile.lyric.isAndroid
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -408,34 +409,36 @@ fun SettingsScreen() {
                         )
                     }
 
-                    HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 16.dp))
+                    if (isAndroid()) {
+                        HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 16.dp))
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { AppState.navigateTo(top.met6.music.mobile.state.Screen.DesktopLyricSettings) }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { AppState.navigateTo(top.met6.music.mobile.state.Screen.DesktopLyricSettings) }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "桌面歌词 (悬浮窗)",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "在桌面上显示歌词，支持 KTV 逐字歌词样式",
+                                    color = Color.Gray,
+                                    fontSize = 12.sp
+                                )
+                            }
                             Text(
-                                text = "桌面歌词 (悬浮窗)",
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "在桌面上显示歌词，支持 KTV 逐字歌词样式",
-                                color = Color.Gray,
-                                fontSize = 12.sp
+                                text = "设置 >",
+                                color = AppleMusicPink,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
-                        Text(
-                            text = "设置 >",
-                            color = AppleMusicPink,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
                     }
                 }
             }
