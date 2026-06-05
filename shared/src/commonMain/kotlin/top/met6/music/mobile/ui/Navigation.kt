@@ -41,6 +41,7 @@ fun AppNavigation() {
                     is Screen.PlaylistDetail -> PlaylistDetailScreen(playlist = currentScreen.playlist)
                     is Screen.Settings -> SettingsScreen()
                     is Screen.CacheManagerDetail -> CacheManagerScreen()
+                    is Screen.DesktopLyricSettings -> DesktopLyricSettingsScreen()
                 }
             }
 

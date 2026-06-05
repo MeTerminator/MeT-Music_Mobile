@@ -27,6 +27,7 @@ sealed class Screen {
     data class PlaylistDetail(val playlist: Playlist) : Screen()
     object Settings : Screen()
     object CacheManagerDetail : Screen()
+    object DesktopLyricSettings : Screen()
 }
 
 enum class PlaybackMode {
@@ -37,6 +38,16 @@ enum class PlaybackMode {
 }
 
 object AppState {
+    val PRESET_COLORS = listOf(
+        "绿色" to Color(0xFF4CAF50),
+        "红色" to Color(0xFFE53935),
+        "蓝色" to Color(0xFF1E88E5),
+        "紫色" to Color(0xFF8E24AA),
+        "土黄色" to Color(0xFFD4AF37),
+        "黑色" to Color(0xFF000000),
+        "白色" to Color(0xFFFFFFFF)
+    )
+    lateinit var context: PlatformContext
     lateinit var storage: CacheManager
     lateinit var player: AudioPlayer
     lateinit var platformStorage: PlatformStorage
@@ -93,6 +104,19 @@ object AppState {
     val lyricFontSize = mutableStateOf(20)
     val translationFontSize = mutableStateOf(14)
     val useSpotifyFont = mutableStateOf(false)
+
+    // --- Desktop Lyric Settings ---
+    val desktopLyricEnabled = mutableStateOf(false)
+    val desktopLyricClickPlayPause = mutableStateOf(false)
+    val desktopLyricShowWhenPaused = mutableStateOf(false)
+    val desktopLyricShowContent = mutableStateOf("lyric") // lyric, song_name
+    val desktopLyricAlignment = mutableStateOf("center") // left, center
+    val desktopLyricX = mutableStateOf(50f)
+    val desktopLyricY = mutableStateOf(3f)
+    val desktopLyricWidth = mutableStateOf(90f)
+    val desktopLyricOpacity = mutableStateOf(90f)
+    val desktopLyricFontSize = mutableStateOf(16f)
+    val desktopLyricColorName = mutableStateOf("绿色")
 
     fun savePlaybackState() {
         try {
@@ -158,6 +182,7 @@ object AppState {
     fun init(context: PlatformContext) {
         if (isInitialized) return
         isInitialized = true
+        this.context = context
 
         val storageImpl = getPlatformStorage(context)
         platformStorage = storageImpl
@@ -228,6 +253,24 @@ object AppState {
         } else {
             useSpotifyFont.value = false
         }
+
+        // Read saved desktop lyric configs
+        val savedDesktopLyric = platformStorage.getText("desktop_lyric_enabled")?.toBoolean() ?: false
+        desktopLyricEnabled.value = savedDesktopLyric
+        if (savedDesktopLyric && top.met6.music.mobile.lyric.checkOverlayPermission(context)) {
+            top.met6.music.mobile.lyric.startFloatingLyricService(context)
+        }
+
+        desktopLyricClickPlayPause.value = platformStorage.getText("desktop_lyric_click_play_pause")?.toBoolean() ?: false
+        desktopLyricShowWhenPaused.value = platformStorage.getText("desktop_lyric_show_when_paused")?.toBoolean() ?: false
+        desktopLyricShowContent.value = platformStorage.getText("desktop_lyric_show_content") ?: "lyric"
+        desktopLyricAlignment.value = platformStorage.getText("desktop_lyric_alignment") ?: "center"
+        desktopLyricX.value = platformStorage.getText("desktop_lyric_x")?.toFloatOrNull() ?: 50f
+        desktopLyricY.value = platformStorage.getText("desktop_lyric_y")?.toFloatOrNull() ?: 3f
+        desktopLyricWidth.value = platformStorage.getText("desktop_lyric_width")?.toFloatOrNull() ?: 90f
+        desktopLyricOpacity.value = platformStorage.getText("desktop_lyric_opacity")?.toFloatOrNull() ?: 90f
+        desktopLyricFontSize.value = platformStorage.getText("desktop_lyric_font_size")?.toFloatOrNull() ?: 16f
+        desktopLyricColorName.value = platformStorage.getText("desktop_lyric_color_name") ?: "绿色"
 
         // Restore last playback state
         loadSavedPlaybackState()
@@ -690,5 +733,71 @@ object AppState {
             index = lines.size - 1
         }
         currentLyricIndex.value = index
+    }
+
+    fun setDesktopLyricEnabled(enabled: Boolean) {
+        desktopLyricEnabled.value = enabled
+        platformStorage.saveText("desktop_lyric_enabled", enabled.toString())
+        if (enabled) {
+            if (top.met6.music.mobile.lyric.checkOverlayPermission(context)) {
+                top.met6.music.mobile.lyric.startFloatingLyricService(context)
+            } else {
+                desktopLyricEnabled.value = false
+                platformStorage.saveText("desktop_lyric_enabled", "false")
+                top.met6.music.mobile.lyric.requestOverlayPermission(context)
+            }
+        } else {
+            top.met6.music.mobile.lyric.stopFloatingLyricService(context)
+        }
+    }
+
+    fun setDesktopLyricClickPlayPause(enabled: Boolean) {
+        desktopLyricClickPlayPause.value = enabled
+        platformStorage.saveText("desktop_lyric_click_play_pause", enabled.toString())
+    }
+
+    fun setDesktopLyricShowWhenPaused(enabled: Boolean) {
+        desktopLyricShowWhenPaused.value = enabled
+        platformStorage.saveText("desktop_lyric_show_when_paused", enabled.toString())
+    }
+
+    fun setDesktopLyricShowContent(content: String) {
+        desktopLyricShowContent.value = content
+        platformStorage.saveText("desktop_lyric_show_content", content)
+    }
+
+    fun setDesktopLyricAlignment(alignment: String) {
+        desktopLyricAlignment.value = alignment
+        platformStorage.saveText("desktop_lyric_alignment", alignment)
+    }
+
+    fun setDesktopLyricX(x: Float) {
+        desktopLyricX.value = x
+        platformStorage.saveText("desktop_lyric_x", x.toString())
+    }
+
+    fun setDesktopLyricY(y: Float) {
+        desktopLyricY.value = y
+        platformStorage.saveText("desktop_lyric_y", y.toString())
+    }
+
+    fun setDesktopLyricWidth(w: Float) {
+        desktopLyricWidth.value = w
+        platformStorage.saveText("desktop_lyric_width", w.toString())
+    }
+
+    fun setDesktopLyricOpacity(o: Float) {
+        desktopLyricOpacity.value = o
+        platformStorage.saveText("desktop_lyric_opacity", o.toString())
+    }
+
+    fun setDesktopLyricFontSize(size: Float) {
+        desktopLyricFontSize.value = size
+        platformStorage.saveText("desktop_lyric_font_size", size.toString())
+    }
+
+    fun setDesktopLyricColorName(name: String) {
+        desktopLyricColorName.value = name
+        platformStorage.saveText("desktop_lyric_color_name", name)
     }
 }
