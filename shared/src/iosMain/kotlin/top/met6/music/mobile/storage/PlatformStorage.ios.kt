@@ -36,23 +36,56 @@ class IosPlatformStorage : PlatformStorage {
 
     @OptIn(ExperimentalForeignApi::class)
     override suspend fun saveCacheFile(category: String, name: String, data: ByteArray) {
-        val path = "${getCacheDir(category)}/$name"
+        val path = if (category == "songs") {
+            val cleanName = if (name.endsWith(".mp3")) name.substringBeforeLast(".mp3") else name
+            "${getCacheDir("songs")}/$cleanName.mp3"
+        } else {
+            "${getCacheDir(category)}/$name"
+        }
         val nsData = data.toNSData()
         nsData.writeToFile(path, atomically = true)
     }
 
     @OptIn(ExperimentalForeignApi::class)
     override suspend fun getCacheFile(category: String, name: String): ByteArray? {
-        val path = "${getCacheDir(category)}/$name"
         val fileManager = NSFileManager.defaultManager
+        val path = if (category == "songs") {
+            val cleanName = if (name.endsWith(".mp3")) name.substringBeforeLast(".mp3") else name
+            val mp3Path = "${getCacheDir("songs")}/$cleanName.mp3"
+            val legacyPath = "${getCacheDir("songs")}/$cleanName"
+            if (fileManager.fileExistsAtPath(mp3Path)) {
+                mp3Path
+            } else if (fileManager.fileExistsAtPath(legacyPath)) {
+                fileManager.moveItemAtPath(legacyPath, mp3Path, error = null)
+                mp3Path
+            } else {
+                mp3Path
+            }
+        } else {
+            "${getCacheDir(category)}/$name"
+        }
         if (!fileManager.fileExistsAtPath(path)) return null
         val nsData = NSData.dataWithContentsOfFile(path) ?: return null
         return nsData.toByteArray()
     }
 
     override suspend fun getCacheUrl(category: String, name: String): String? {
-        val path = "${getCacheDir(category)}/$name"
         val fileManager = NSFileManager.defaultManager
+        if (category == "songs") {
+            val cleanName = if (name.endsWith(".mp3")) name.substringBeforeLast(".mp3") else name
+            val mp3Path = "${getCacheDir("songs")}/$cleanName.mp3"
+            val legacyPath = "${getCacheDir("songs")}/$cleanName"
+            if (fileManager.fileExistsAtPath(mp3Path)) {
+                return mp3Path
+            }
+            if (fileManager.fileExistsAtPath(legacyPath)) {
+                val success = fileManager.moveItemAtPath(legacyPath, mp3Path, error = null)
+                if (success) return mp3Path
+                return legacyPath
+            }
+            return null
+        }
+        val path = "${getCacheDir(category)}/$name"
         return if (fileManager.fileExistsAtPath(path)) path else null
     }
 
@@ -96,19 +129,52 @@ class IosPlatformStorage : PlatformStorage {
             val attrs = fileManager.attributesOfItemAtPath(subPath, error = null)
             val fileType = attrs?.get(NSFileType) as? String
             fileType != NSFileTypeDirectory
+        }.map { item ->
+            if (category == "songs" && item.endsWith(".mp3")) {
+                item.substringBeforeLast(".mp3")
+            } else {
+                item
+            }
         }
     }
 
     override suspend fun deleteCacheFile(category: String, name: String): Boolean {
-        val path = "${getCacheDir(category)}/$name"
         val fileManager = NSFileManager.defaultManager
+        if (category == "songs") {
+            val cleanName = if (name.endsWith(".mp3")) name.substringBeforeLast(".mp3") else name
+            val mp3Path = "${getCacheDir("songs")}/$cleanName.mp3"
+            val legacyPath = "${getCacheDir("songs")}/$cleanName"
+            var deleted = false
+            if (fileManager.fileExistsAtPath(mp3Path)) {
+                deleted = fileManager.removeItemAtPath(mp3Path, error = null) || deleted
+            }
+            if (fileManager.fileExistsAtPath(legacyPath)) {
+                deleted = fileManager.removeItemAtPath(legacyPath, error = null) || deleted
+            }
+            return deleted
+        }
+        val path = "${getCacheDir(category)}/$name"
         if (!fileManager.fileExistsAtPath(path)) return false
         return fileManager.removeItemAtPath(path, error = null)
     }
 
     override suspend fun getCacheFileSize(category: String, name: String): Long {
-        val path = "${getCacheDir(category)}/$name"
         val fileManager = NSFileManager.defaultManager
+        val path = if (category == "songs") {
+            val cleanName = if (name.endsWith(".mp3")) name.substringBeforeLast(".mp3") else name
+            val mp3Path = "${getCacheDir("songs")}/$cleanName.mp3"
+            val legacyPath = "${getCacheDir("songs")}/$cleanName"
+            if (fileManager.fileExistsAtPath(mp3Path)) {
+                mp3Path
+            } else if (fileManager.fileExistsAtPath(legacyPath)) {
+                fileManager.moveItemAtPath(legacyPath, mp3Path, error = null)
+                mp3Path
+            } else {
+                mp3Path
+            }
+        } else {
+            "${getCacheDir(category)}/$name"
+        }
         if (!fileManager.fileExistsAtPath(path)) return 0L
         val attrs = fileManager.attributesOfItemAtPath(path, error = null) ?: return 0L
         return (attrs[NSFileSize] as? NSNumber)?.longValue ?: 0L
