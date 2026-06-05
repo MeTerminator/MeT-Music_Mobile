@@ -40,6 +40,7 @@ import top.met6.music.mobile.models.Song
 import top.met6.music.mobile.state.AppState
 import top.met6.music.mobile.lyric.LyricLine
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.drawscope.clipRect
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,16 +56,35 @@ fun FullScreenPlayer() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF3C1F24),
-                        Color(0xFF1E1E24),
-                        Color(0xFF0F0F12)
+            .background(Color(0xFF0C0C0E))
+    ) {
+        // Zoomed-in and heavily blurred cover image background
+        val coverUrl = song.bestCoverUrl
+        if (coverUrl.isNotEmpty()) {
+            CachedImage(
+                songId = song.id,
+                imageUrl = coverUrl,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(60.dp),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        // Dark gradient overlay / scrim to ensure contrast and legibility
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.5f),
+                            Color.Black.copy(alpha = 0.75f),
+                            Color(0xFF0A0A0C).copy(alpha = 0.95f)
+                        )
                     )
                 )
-            )
-    ) {
+        )
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
@@ -79,6 +99,7 @@ fun FullScreenPlayer() {
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
+                            .safeDrawingPadding()
                             .padding(24.dp)
                     ) {
                         Column(
@@ -112,7 +133,8 @@ fun FullScreenPlayer() {
                                 modifier = Modifier
                                     .fillMaxWidth(0.8f)
                                     .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(16.dp))
+                                    .clip(RoundedCornerShape(16.dp)),
+                                onColorExtracted = { AppState.currentThemeColor.value = it }
                             )
                             
                             Spacer(modifier = Modifier.height(16.dp))
@@ -150,6 +172,7 @@ fun FullScreenPlayer() {
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
+                            .safeDrawingPadding()
                             .padding(16.dp)
                     ) {
                         var showControlsOverCover by remember { mutableStateOf(false) }
@@ -180,7 +203,7 @@ fun FullScreenPlayer() {
                             val coverUrl = song.bestCoverUrl
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight()
+                                    .fillMaxHeight(0.85f)
                                     .aspectRatio(1f)
                                     .clip(RoundedCornerShape(16.dp))
                                     .clickable { showControlsOverCover = !showControlsOverCover }
@@ -189,7 +212,8 @@ fun FullScreenPlayer() {
                                     songId = song.id,
                                     imageUrl = coverUrl,
                                     modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Fit
+                                    contentScale = ContentScale.Crop,
+                                    onColorExtracted = { AppState.currentThemeColor.value = it }
                                 )
                                 
                                 if (showControlsOverCover) {
@@ -383,7 +407,8 @@ fun PortraitPager(
                     modifier = Modifier
                         .fillMaxWidth(0.85f)
                         .aspectRatio(1f)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(16.dp)),
+                    onColorExtracted = { AppState.currentThemeColor.value = it }
                 )
                 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -471,24 +496,50 @@ fun PortraitPager(
                         )
                     }
 
-                    // Play / Pause button
-                    val isPlaying = AppState.player.isPlaying.value
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.1f))
-                            .clickable {
-                                if (isPlaying) AppState.player.pause() else AppState.resumeOrPlay()
-                            },
-                        contentAlignment = Alignment.Center
+                    // Play / Pause / Skip controls
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Icon(
-                            imageVector = if (isPlaying) MusicIcons.Pause else MusicIcons.Play,
-                            contentDescription = "Play/Pause",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        // Previous Song
+                        IconButton(onClick = { AppState.prevSong() }) {
+                            Icon(
+                                imageVector = MusicIcons.SkipPrevious,
+                                contentDescription = "Previous",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        // Play / Pause button
+                        val isPlaying = AppState.player.isPlaying.value
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.1f))
+                                .clickable {
+                                    if (isPlaying) AppState.player.pause() else AppState.resumeOrPlay()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) MusicIcons.Pause else MusicIcons.Play,
+                                contentDescription = "Play/Pause",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        // Next Song
+                        IconButton(onClick = { AppState.nextSong() }) {
+                            Icon(
+                                imageVector = MusicIcons.SkipNext,
+                                contentDescription = "Next",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -706,19 +757,24 @@ fun LyricsView(showTranslation: Boolean = true) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                AppState.seekTo(line.startTimeMs)
+                                val targetPos = line.startTimeMs - AppState.lyricOffsetMs.value
+                                AppState.seekTo(targetPos.coerceAtLeast(0L))
                             },
                         horizontalAlignment = Alignment.Start
                     ) {
+                        val baseLyricSize = AppState.lyricFontSize.value
+                        val fontSizeSp = (if (isActive) baseLyricSize + 4 else baseLyricSize).sp
+                        val lineHeightSp = (fontSizeSp.value * 1.3f).sp
+
                         if (line.syllables.isEmpty()) {
                             // Normal LRC line
                             val color = if (isActive) Color.White else Color.White.copy(alpha = 0.4f)
                             Text(
                                 text = line.text,
                                 color = color,
-                                fontSize = if (isActive) 22.sp else 18.sp,
+                                fontSize = fontSizeSp,
                                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                                lineHeight = 28.sp,
+                                lineHeight = lineHeightSp,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         } else {
@@ -728,7 +784,7 @@ fun LyricsView(showTranslation: Boolean = true) {
                                 horizontalArrangement = Arrangement.Start
                             ) {
                                 line.syllables.forEach { syllable ->
-                                    val elapsedMs = currentTimeMs - syllable.timeOffsetMs
+                                    val elapsedMs = (currentTimeMs + AppState.lyricOffsetMs.value) - syllable.timeOffsetMs
                                     val durationMs = syllable.durationMs
                                     val progress = when {
                                         !isActive -> 0f
@@ -743,19 +799,21 @@ fun LyricsView(showTranslation: Boolean = true) {
                                         Text(
                                             text = syllable.text,
                                             color = Color.White.copy(alpha = 0.4f),
-                                            fontSize = if (isActive) 22.sp else 18.sp,
+                                            fontSize = fontSizeSp,
                                             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                                            lineHeight = 28.sp
+                                            lineHeight = lineHeightSp
                                         )
 
                                         if (isActive && progress > 0f) {
                                             // Overlay layer (white, clipped to progress)
+                                            val activeFontSizeSp = (baseLyricSize + 4).sp
+                                            val activeLineHeightSp = (activeFontSizeSp.value * 1.3f).sp
                                             Text(
                                                 text = syllable.text,
                                                 color = Color.White,
-                                                fontSize = 22.sp,
+                                                fontSize = activeFontSizeSp,
                                                 fontWeight = FontWeight.Bold,
-                                                lineHeight = 28.sp,
+                                                lineHeight = activeLineHeightSp,
                                                 modifier = Modifier.drawWithContent {
                                                     clipRect(right = size.width * progress) {
                                                         this@drawWithContent.drawContent()
@@ -770,10 +828,13 @@ fun LyricsView(showTranslation: Boolean = true) {
                         
                         line.translation?.let { tran ->
                             if (showTranslation && tran.isNotEmpty() && tran != "//") {
+                                val baseTranSize = AppState.translationFontSize.value
+                                val tranFontSizeSp = (if (isActive) baseTranSize + 2 else baseTranSize).sp
                                 Text(
                                     text = tran,
                                     color = if (isActive) Color.White.copy(alpha = 0.8f) else Color.Gray,
-                                    fontSize = if (isActive) 16.sp else 14.sp,
+                                    fontSize = tranFontSizeSp,
+                                    lineHeight = (tranFontSizeSp.value * 1.3f).sp,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }

@@ -2,6 +2,7 @@ package top.met6.music.mobile.state
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -41,6 +42,7 @@ object AppState {
     lateinit var platformStorage: PlatformStorage
     lateinit var mediaSessionController: MediaSessionController
     private val scope = CoroutineScope(Dispatchers.Main)
+    private var isInitialized = false
 
     // --- Navigation ---
     val currentScreen = mutableStateOf<Screen>(Screen.Login)
@@ -84,6 +86,12 @@ object AppState {
     val playlistCacheSize = mutableStateOf(0.0)
     val coverCacheSize = mutableStateOf(0.0)
     val songCacheSize = mutableStateOf(0.0)
+    val lyricCacheSize = mutableStateOf(0.0)
+    val currentThemeColor = mutableStateOf(Color(0xFF1E1E24))
+    val lyricOffsetMs = mutableStateOf(0L)
+    val lyricLeadMs = mutableStateOf(300L)
+    val lyricFontSize = mutableStateOf(20)
+    val translationFontSize = mutableStateOf(14)
 
     fun savePlaybackState() {
         try {
@@ -121,7 +129,11 @@ object AppState {
                     // Pre-load lyrics for saved song
                     scope.launch {
                         try {
-                            val lyricResponse = ApiClient.getSongLyric(song.id)
+                            var lyricResponse = storage.getLyricFromCache(song.id)
+                            if (lyricResponse == null) {
+                                lyricResponse = ApiClient.getSongLyric(song.id)
+                                storage.saveLyricToCache(song.id, lyricResponse)
+                            }
                             lyricLines.value = LyricParser.parse(lyricResponse)
                             updateLyricIndex(pos)
                         } catch (e: Exception) {
@@ -143,6 +155,9 @@ object AppState {
     }
 
     fun init(context: PlatformContext) {
+        if (isInitialized) return
+        isInitialized = true
+
         val storageImpl = getPlatformStorage(context)
         platformStorage = storageImpl
         storage = CacheManager(storageImpl)
@@ -176,6 +191,34 @@ object AppState {
             try {
                 playbackMode.value = PlaybackMode.valueOf(savedMode)
             } catch (e: Exception) {}
+        }
+
+        val savedOffset = platformStorage.getText("lyric_offset")
+        if (!savedOffset.isNullOrEmpty()) {
+            lyricOffsetMs.value = savedOffset.toLongOrNull() ?: 0L
+        } else {
+            lyricOffsetMs.value = 0L
+        }
+
+        val savedLead = platformStorage.getText("lyric_lead")
+        if (!savedLead.isNullOrEmpty()) {
+            lyricLeadMs.value = savedLead.toLongOrNull() ?: 300L
+        } else {
+            lyricLeadMs.value = 300L
+        }
+
+        val savedLyricSize = platformStorage.getText("lyric_font_size")
+        if (!savedLyricSize.isNullOrEmpty()) {
+            lyricFontSize.value = savedLyricSize.toIntOrNull() ?: 20
+        } else {
+            lyricFontSize.value = 20
+        }
+
+        val savedTranslationSize = platformStorage.getText("translation_font_size")
+        if (!savedTranslationSize.isNullOrEmpty()) {
+            translationFontSize.value = savedTranslationSize.toIntOrNull() ?: 14
+        } else {
+            translationFontSize.value = 14
         }
 
         // Restore last playback state
@@ -320,11 +363,32 @@ object AppState {
         platformStorage.saveText("playback_mode", mode.name)
     }
 
+    fun setLyricOffset(offsetMs: Long) {
+        lyricOffsetMs.value = offsetMs
+        platformStorage.saveText("lyric_offset", offsetMs.toString())
+    }
+
+    fun setLyricLead(leadMs: Long) {
+        lyricLeadMs.value = leadMs
+        platformStorage.saveText("lyric_lead", leadMs.toString())
+    }
+
+    fun setLyricFontSize(size: Int) {
+        lyricFontSize.value = size
+        platformStorage.saveText("lyric_font_size", size.toString())
+    }
+
+    fun setTranslationFontSize(size: Int) {
+        translationFontSize.value = size
+        platformStorage.saveText("translation_font_size", size.toString())
+    }
+
     fun updateCacheSizes() {
         scope.launch {
             playlistCacheSize.value = storage.getCacheSizeMb("playlists")
             coverCacheSize.value = storage.getCacheSizeMb("covers")
             songCacheSize.value = storage.getCacheSizeMb("songs")
+            lyricCacheSize.value = storage.getCacheSizeMb("lyrics")
         }
     }
 
@@ -466,7 +530,11 @@ object AppState {
                 }
                 
                 // 3. Load & Parse lyrics
-                val lyricResponse = ApiClient.getSongLyric(song.id)
+                var lyricResponse = storage.getLyricFromCache(song.id)
+                if (lyricResponse == null) {
+                    lyricResponse = ApiClient.getSongLyric(song.id)
+                    storage.saveLyricToCache(song.id, lyricResponse)
+                }
                 lyricLines.value = LyricParser.parse(lyricResponse)
 
                 mediaSessionController.updateMetadata(
@@ -572,7 +640,11 @@ object AppState {
 
                 // 4. Preload Lyrics
                 try {
-                    ApiClient.getSongLyric(song.id)
+                    var lyricResponse = storage.getLyricFromCache(song.id)
+                    if (lyricResponse == null) {
+                        lyricResponse = ApiClient.getSongLyric(song.id)
+                        storage.saveLyricToCache(song.id, lyricResponse)
+                    }
                 } catch (e: Exception) {
                     // Ignore lyric preloading errors
                 }
@@ -583,7 +655,7 @@ object AppState {
     }
  
     private fun updateLyricIndex(currentTimeMs: Long) {
-        val adjustedTime = currentTimeMs + 400L // 0.4s early transition to prevent delay
+        val adjustedTime = currentTimeMs + lyricOffsetMs.value + lyricLeadMs.value // dynamic offset + dynamic early transition lead
         val lines = lyricLines.value
         if (lines.isEmpty()) return
         

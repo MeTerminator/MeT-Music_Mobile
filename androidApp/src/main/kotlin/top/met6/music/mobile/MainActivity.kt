@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App(top.met6.music.mobile.storage.PlatformContext(this))
+            App(top.met6.music.mobile.storage.PlatformContext(applicationContext))
         }
     }
 }
@@ -21,5 +21,5 @@ class MainActivity : ComponentActivity() {
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    App(top.met6.music.mobile.storage.PlatformContext(androidx.compose.ui.platform.LocalContext.current))
+    App(top.met6.music.mobile.storage.PlatformContext(androidx.compose.ui.platform.LocalContext.current.applicationContext))
 }

@@ -14,6 +14,7 @@ import io.ktor.client.request.get
 import top.met6.music.mobile.api.httpClient
 import top.met6.music.mobile.state.AppState
 import top.met6.music.mobile.utils.toImageBitmap
+import top.met6.music.mobile.utils.extractDominantColor
 
 @Composable
 fun CachedImage(
@@ -21,7 +22,8 @@ fun CachedImage(
     imageUrl: String,
     modifier: Modifier = Modifier,
     placeholder: Painter? = null,
-    contentScale: ContentScale = ContentScale.Crop
+    contentScale: ContentScale = ContentScale.Crop,
+    onColorExtracted: ((Color) -> Unit)? = null
 ) {
     var bitmap by remember(imageUrl) { mutableStateOf<ImageBitmap?>(null) }
 
@@ -31,6 +33,10 @@ fun CachedImage(
                 val bytes = AppState.storage.getCoverImageBytes(songId, imageUrl)
                 if (bytes != null) {
                     bitmap = bytes.toImageBitmap()
+                    if (onColorExtracted != null) {
+                        val color = bytes.extractDominantColor()
+                        onColorExtracted(color)
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.met6.music.mobile.state.AppState
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,7 +95,7 @@ fun SettingsScreen() {
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "QQ ID: ${AppState.qqId.value}",
+                            text = "QQ: ${AppState.qqId.value}",
                             color = Color.Gray,
                             fontSize = 13.sp
                         )
@@ -165,6 +166,222 @@ fun SettingsScreen() {
             
             Spacer(modifier = Modifier.height(24.dp))
             
+            // Lyric Offset Section
+            Text(
+                text = "歌词设置",
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
+            )
+            
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Item 1: Overall Offset
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "歌词整体偏移 (整体同步)",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        val offset = AppState.lyricOffsetMs.value
+                        val offsetStr = if (offset > 0) "+${offset}ms" else "${offset}ms"
+                        Text(
+                            text = offsetStr,
+                            color = AppleMusicPink,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val currentOffset = AppState.lyricOffsetMs.value.toFloat()
+                    Slider(
+                        value = currentOffset,
+                        onValueChange = {
+                            val targetOffset = (kotlin.math.round(it / 50f) * 50f).toLong()
+                            AppState.setLyricOffset(targetOffset)
+                        },
+                        valueRange = -2000f..2000f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = AppleMusicPink,
+                            activeTrackColor = AppleMusicPink,
+                            inactiveTrackColor = Color.DarkGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "提前 -2.0s", color = Color.Gray, fontSize = 11.sp)
+                        Text(text = "默认 0ms", color = Color.Gray, fontSize = 11.sp)
+                        Text(text = "延后 +2.0s", color = Color.Gray, fontSize = 11.sp)
+                    }
+                    
+                    HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 16.dp))
+                    
+                    // Item 2: Early Transition Lead
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "提前切换时间 (换行灵敏度)",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        val lead = AppState.lyricLeadMs.value
+                        Text(
+                            text = "+${lead}ms",
+                            color = AppleMusicPink,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val currentLead = AppState.lyricLeadMs.value.toFloat()
+                    Slider(
+                        value = currentLead,
+                        onValueChange = {
+                            val targetLead = (kotlin.math.round(it / 50f) * 50f).toLong()
+                            AppState.setLyricLead(targetLead)
+                        },
+                        valueRange = 0f..1000f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = AppleMusicPink,
+                            activeTrackColor = AppleMusicPink,
+                            inactiveTrackColor = Color.DarkGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "无延迟 0ms", color = Color.Gray, fontSize = 11.sp)
+                        Text(text = "默认 +300ms", color = Color.Gray, fontSize = 11.sp)
+                        Text(text = "较早 +1000ms", color = Color.Gray, fontSize = 11.sp)
+                    }
+                    
+                    HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 16.dp))
+                    
+                    // Item 3: Lyric Font Size
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "歌词字体大小",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        val lyricSize = AppState.lyricFontSize.value
+                        Text(
+                            text = "${lyricSize}sp",
+                            color = AppleMusicPink,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val currentLyricSize = AppState.lyricFontSize.value.toFloat()
+                    Slider(
+                        value = currentLyricSize,
+                        onValueChange = {
+                            AppState.setLyricFontSize(it.roundToInt())
+                        },
+                        valueRange = 14f..28f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = AppleMusicPink,
+                            activeTrackColor = AppleMusicPink,
+                            inactiveTrackColor = Color.DarkGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "小 (14sp)", color = Color.Gray, fontSize = 11.sp)
+                        Text(text = "默认 (20sp)", color = Color.Gray, fontSize = 11.sp)
+                        Text(text = "大 (28sp)", color = Color.Gray, fontSize = 11.sp)
+                    }
+                    
+                    HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 16.dp))
+                    
+                    // Item 4: Translation Font Size
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "翻译字体大小",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        val tranSize = AppState.translationFontSize.value
+                        Text(
+                            text = "${tranSize}sp",
+                            color = AppleMusicPink,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val currentTranSize = AppState.translationFontSize.value.toFloat()
+                    Slider(
+                        value = currentTranSize,
+                        onValueChange = {
+                            AppState.setTranslationFontSize(it.roundToInt())
+                        },
+                        valueRange = 10f..22f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = AppleMusicPink,
+                            activeTrackColor = AppleMusicPink,
+                            inactiveTrackColor = Color.DarkGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "小 (10sp)", color = Color.Gray, fontSize = 11.sp)
+                        Text(text = "默认 (14sp)", color = Color.Gray, fontSize = 11.sp)
+                        Text(text = "大 (22sp)", color = Color.Gray, fontSize = 11.sp)
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
             // Cache Settings Section
             Text(
                 text = "缓存管理",
@@ -185,6 +402,15 @@ fun SettingsScreen() {
                         sizeMb = AppState.playlistCacheSize.value
                     ) {
                         AppState.clearCacheCategory("playlists")
+                    }
+                    
+                    Divider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 12.dp))
+                    
+                    CacheRow(
+                        title = "歌词数据缓存",
+                        sizeMb = AppState.lyricCacheSize.value
+                    ) {
+                        AppState.clearCacheCategory("lyrics")
                     }
                     
                     Divider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 12.dp))

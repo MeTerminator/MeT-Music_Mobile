@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.withLock
 import top.met6.music.mobile.api.httpClient
 import top.met6.music.mobile.models.Playlist
 import top.met6.music.mobile.models.Song
+import top.met6.music.mobile.models.LyricResponse
 
 class CacheManager(private val storage: PlatformStorage) {
     private val downloadScope = CoroutineScope(Dispatchers.Default)
@@ -199,6 +200,26 @@ class CacheManager(private val storage: PlatformStorage) {
         }
         
         return remoteUrl
+    }
+
+    suspend fun saveLyricToCache(songId: String, lyric: LyricResponse) {
+        try {
+            val json = Json.encodeToString(lyric)
+            storage.saveCacheFile("lyrics", "$songId.json", json.encodeToByteArray())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun getLyricFromCache(songId: String): LyricResponse? {
+        try {
+            val bytes = storage.getCacheFile("lyrics", "$songId.json") ?: return null
+            val json = bytes.decodeToString()
+            return Json.decodeFromString<LyricResponse>(json)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        }
     }
 
     suspend fun getCacheSizeMb(category: String): Double {
